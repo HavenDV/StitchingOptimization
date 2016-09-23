@@ -1,14 +1,16 @@
+#include <iostream>
+#include <chrono>
 #include "stitching.h"
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/stitching/stitcher.hpp>
-#include <opencv2/stitching/warpers.hpp>
-#include <opencv2/stitching/detail/autocalib.hpp>
-#include <opencv2/nonfree/features2d.hpp>
+#include "opencv2/highgui.hpp"
+#include "opencv2/stitching.hpp"
+#include "opencv2/stitching/detail/autocalib.hpp"
+#include "opencv2/xfeatures2d.hpp"
 #include "CAMRefiner.h"
 
 using namespace std;
 using namespace cv;
 using namespace cv::detail;
+using namespace cv::xfeatures2d;
 
 // Scales
 double work_scale = 1;
@@ -25,6 +27,9 @@ bool try_use_gpu = false;
 // Image Counter
 static int imageCounter = 0;
 
+// HFOV
+int H_FOV_GLOBAL = 0;
+
 // Globals
 vector<Mat> global_images(max_images);
 vector<CameraParams> cameras_global(max_images);
@@ -32,11 +37,11 @@ vector<CameraParams> refined_cameras_global(max_images);
 vector<ImageFeatures> global_features(max_images);
 
 // Detector
-Ptr<GridAdaptedFeatureDetector> detector = new GridAdaptedFeatureDetector(new GFTTDetector(200,0.01,0,4),400);
+Ptr<GFTTDetector> detector = GFTTDetector::create();//200,0.01,0,4,400
 //Ptr<GFTTDetector> detector = new GFTTDetector(500);
 
 // Extractor
-Ptr<SiftDescriptorExtractor> extractor = new SiftDescriptorExtractor();
+Ptr<SiftDescriptorExtractor> extractor = SiftDescriptorExtractor::create();
 
 void refineCameraParametersWithFeatures(vector<ImageFeatures> &featuresToMatch,vector<MatchesInfo> &pairwise_matches,vector<CameraParams> &camerasToRefine){
     printf("\n### Adjusting..!");
@@ -98,6 +103,7 @@ cv::Mat startStitching(){
     vector < cv::Point > corners(num_images);
     cv::Rect destROI;
     
+//#warning This is what I want to do in the background.. I.e. Warping & remapping the images as they're passed in
     for (int img_idx = 0; img_idx < num_images; ++img_idx) {
         cv::Size img_size = global_images[img_idx].size();
         
@@ -176,13 +182,13 @@ cv::Mat startStitching(){
     // Reset image counter
     imageCounter = 0;
     
-    cout << "\n Blend Starting, total time: " << ((getTickCount() - app_start_time) / getTickFrequency())   << " sec";
+    cout << "\n Blend Starting, total time: " << ((getTickCount() - app_start_time) / getTickFrequency())   << " sec" << std::endl;
     // Blend images
     Mat result, result_mask;
     blender->blend(result, result_mask);
     result.convertTo(result, CV_8UC3);
     
-    cout << "\nFinished, total time: " << ((getTickCount() - app_start_time) / getTickFrequency())   << " sec";
+    cout << "\nFinished, total time: " << ((getTickCount() - app_start_time) / getTickFrequency())   << " sec" << std::endl;
     
     blender.release();
     return result;
@@ -192,13 +198,13 @@ void startMatchingFeatures(int index, Mat &image){
     // Start Index: 0
     printf("\n Running Image: #%d\n",index);
     
-    if (!detector) {
-        detector = new GridAdaptedFeatureDetector(new GFTTDetector(200,0.01,0,4),400);
-    }
+    //if (!detector) {
+        //detector = new GridAdaptedFeatureDetector(new GFTTDetector(200,0.01,0,4),400);
+    //}
     
-    if (!extractor) {
-        extractor = new SiftDescriptorExtractor();
-    }
+    //if (!extractor) {
+     //   extractor = new SiftDescriptorExtractor();
+    //}
     cv::Mat greyMat;
     cv::cvtColor(image, greyMat, cv::COLOR_BGR2GRAY);
     detector->detect(greyMat, global_features[index].keypoints); // Image Detect
@@ -248,7 +254,10 @@ void addCameraParameters(Mat &image, int HFOV, Mat rotationMatrix) {
     
     // [focal length in mm]*[resolution]/[sensor size in mm]
     cameras_global[imageCounter].focal = (4.12*image.size().height/4.54) * 1.10;
-    printf("\n focal: %f",cameras_global[imageCounter].focal);
+    printf("\n focal is now: %f",cameras_global[imageCounter].focal);
+    
+    H_FOV_GLOBAL = HFOV;
+    printf("\n hfov is now: %d\n",H_FOV_GLOBAL);
     
     image.copyTo(global_images[imageCounter]);
     
@@ -257,7 +266,15 @@ void addCameraParameters(Mat &image, int HFOV, Mat rotationMatrix) {
     image.release();
 }
 
+cv::Mat imread(const cv::String & path, int flags = 1) {
+    cv::VideoCapture capture(path);
+    cv::Mat mat;
+    capture >> mat;
+    return mat;
+}
+
 int main(){
+    auto t1 = std::chrono::high_resolution_clock::now();
     // Load Images & Rotation Matrixes
     Mat rotationMatrix1 = (Mat_<float>(3,3) << 0.999983,
                                                0.004122,
@@ -273,7 +290,7 @@ int main(){
     
     Mat image;
     
-    image = imread("IMG_001.JPG", IMREAD_COLOR ); // Read the file
+    image = ::imread("IMG_001.JPG", IMREAD_COLOR ); // Read the file
     if(image.empty()){
         cout <<  "Could not open or find the image" << std::endl;
         return -1;
@@ -293,7 +310,7 @@ int main(){
                                               -0.998146,
                                               -0.060845);
     
-    Mat image2 = imread("IMG_002.JPG", IMREAD_COLOR);
+    Mat image2 = ::imread("IMG_002.JPG", IMREAD_COLOR);
     addCameraParameters(image2, 0, rotationMatrix2);
     
     Mat rotationMatrix3 = (Mat_<float>(3,3) << 0.814439,
@@ -307,7 +324,7 @@ int main(){
                                               -0.017468,
                                               -0.997815,
                                               -0.063722);
-    Mat image3 = imread("IMG_003.JPG", IMREAD_COLOR);
+    Mat image3 = ::imread("IMG_003.JPG", IMREAD_COLOR);
     addCameraParameters(image3, 0, rotationMatrix3);
     
     // Refine them
@@ -315,6 +332,13 @@ int main(){
     
     // Warp & Blend
     Mat result = startStitching();
-    
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "test function took "
+        << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count()
+        << " milliseconds\n";
+    while (true) {
+        cv::imshow("Result", result);
+        cv::waitKey(1);
+    }
     return 1;
 }
