@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <IncludePath>%OPENCV3_PATH%include;$(IncludePath)</IncludePath>
+    <LibraryPath>%OPENCV3_PATH%x64\vc14\lib;$(LibraryPath)</LibraryPath>
+    <SourcePath>$(SourcePath)</SourcePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>opencv_calib3d$(OPENCV3_VER)d.lib;opencv_core$(OPENCV3_VER)d.lib;opencv_features2d$(OPENCV3_VER)d.lib;opencv_flann$(OPENCV3_VER)d.lib;opencv_highgui$(OPENCV3_VER)d.lib;opencv_imgproc$(OPENCV3_VER)d.lib;opencv_ml$(OPENCV3_VER)d.lib;opencv_objdetect$(OPENCV3_VER)d.lib;opencv_photo$(OPENCV3_VER)d.lib;opencv_stitching$(OPENCV3_VER)d.lib;opencv_superres$(OPENCV3_VER)d.lib;opencv_ts$(OPENCV3_VER)d.lib;opencv_video$(OPENCV3_VER)d.lib;opencv_videostab$(OPENCV3_VER)d.lib;opencv_viz$(OPENCV3_VER)d.lib;opencv_bioinspired$(OPENCV3_VER)d.lib;opencv_videoio$(OPENCV3_VER)d.lib;opencv_text$(OPENCV3_VER)d.lib;opencv_xphoto$(OPENCV3_VER)d.lib;opencv_xobjdetect$(OPENCV3_VER)d.lib;opencv_ximgproc$(OPENCV3_VER)d.lib;opencv_xfeatures2d$(OPENCV3_VER)d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>
